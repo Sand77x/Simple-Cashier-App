@@ -11,23 +11,25 @@
 
 <body>
     <header>
-        <div id="header-left">
-            <button onclick="foldAllCategories()">⬇️ Fold All</button>
-            <button onclick="expandAllCategories()">⬆️ Expand All</button>
-            <button onclick="emptyCart()">🕊️ Empty Cart</button>
+        <div id="header-top">
+            <!--<button onclick="foldAllCategories()">⬇️ Fold All</button>-->
+            <!--<button onclick="expandAllCategories()">⬆️ Expand All</button>-->
+            <button id="header-edit-mode-button" onclick="toggleEditMode()">✏️ Edit Mode</button>
             <button onclick="openNewItemPopup()">⭐ New Item</button>
             <button onclick="openNewCategoryPopup()">👜 New Cagegory</button>
-            <button onclick="toggleEditMode(this)">🫣 Edit Mode</button>
+            <button onclick="emptyCart()">🕊️ Empty Cart</button>
+            <button onclick="startCheckout()">🛒 Checkout</button>
         </div>
-        <div id="header-right">
-            <p id="header-total-profit">P1000.29</p>
+        <div id="header-bottom">
+            <p id="header-subtotal"></p>
+            <p id="header-total"></p>
         </div>
     </header>
 
     <main></main>
 
-    <div id="new-item-popup">
-        <form id="new-item-form">
+    <div id="new-item-popup" class="popup closed-popup">
+        <form id="new-item-form" class="popup-form">
             <label for="new-item-name">
                 Item Name<br>
                 <input id="new-item-name" type="text" name="item-name" placeholder="Odesseus Charm">
@@ -38,20 +40,80 @@
             </label>
             <label for="new-item-price">
                 Price<br>
-                <input id="new-item-price" type="number" name="item-price" placeholder="12.3">
+                <input id="new-item-price" type="number" step="0.01" name="item-price" placeholder="12.3">
             </label>
             <label for="new-item-category">
                 Category<br>
                 <select id="new-item-category" name="item-category">
-                    <option value="hey">hey</option>
-                    <option value="hey">hey</option>
-                    <option value="hey">hey</option>
                 </select>
             </label>
-            <button type="submit">Create</button>
+            <button type="submit">Save</button>
         </form>
     </div>
-    <div id="new-category-popup"></div>
+    <div id="edit-item-popup" class="popup closed-popup">
+        <form id="edit-item-form" class="popup-form">
+            <label for="edit-item-name">
+                Item Name<br>
+                <input id="edit-item-name" type="text" name="item-name" placeholder="Odesseus Charm">
+            </label>
+            <label for="edit-item-amount">
+                Amount<br>
+                <input id="edit-item-amount" type="number" name="item-amount" placeholder="10">
+            </label>
+            <label for="edit-item-price">
+                Price<br>
+                <input id="edit-item-price" type="number" step="0.01" name="item-price" placeholder="12.3">
+            </label>
+            <label for="edit-item-category">
+                Category<br>
+                <select id="edit-item-category" name="item-category">
+                </select>
+            </label>
+            <input id="edit-item-oldname" type="hidden" name="item-oldname">
+            <button type="submit">Save</button>
+            <button id="cancel-edit-button">Cancel</button>
+        </form>
+    </div>
+    <div id="new-category-popup" class="popup closed-popup">
+        <form id="new-category-form" class="popup-form">
+            <label for="new-category-name">
+                Category Name<br>
+                <input id="new-category-name" type="text" name="category-name" placeholder="Charms">
+            </label>
+            <label for="new-category-color">
+                Color<br>
+                <input id="new-category-color" type="color" name="category-color" placeholder="Charms">
+            </label>
+            <button type="submit">Save</button>
+        </form>
+    </div>
+    <div id="edit-category-popup" class="popup closed-popup">
+        <form id="edit-category-form" class="popup-form">
+            <label for="edit-category-name">
+                Category Name<br>
+                <input id="edit-category-name" type="text" name="category-name" placeholder="Charms">
+            </label>
+            <label for="edit-category-color">
+                Color<br>
+                <input id="edit-category-color" type="color" name="category-color" placeholder="Charms">
+            </label>
+            <input id="edit-category-oldname" type="hidden" name="category-oldname">
+            <button type="submit">Save</button>
+        </form>
+    </div>
+    <div id="confirm-delete-popup" class="popup closed-popup">
+        <div id="confirm-delete-form" class="popup-form">
+            <button id="confirm-delete-button">Delete</button>
+            <button id="confirm-cancel-button">Cancel</button>
+        </div>
+    </div>
+    <div id="checkout-popup" class="popup closed-popup">
+        <div id="checkout-form" class="popup-form">
+            <div id="checkout-summary"></div>
+            <button id="checkout-checkout-button">Checkout</button>
+            <button id="checkout-cancel-button">Cancel</button>
+        </div>
+    </div>
 </body>
 
 <script src="./script.js"></script>
