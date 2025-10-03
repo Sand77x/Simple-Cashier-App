@@ -15,18 +15,15 @@ const globals = {
         editItemPopupDiv: document.getElementById("edit-item-popup"),
         editItemForm: document.getElementById("edit-item-form"),
         editItemCategorySelect: document.getElementById("edit-item-category"),
-        editItemCancelButton: document.getElementById("cancel-edit-button"),
         newCategoryPopupDiv: document.getElementById("new-category-popup"),
         newCategoryForm: document.getElementById("new-category-form"),
         editCategoryPopupDiv: document.getElementById("edit-category-popup"),
         editCategoryForm: document.getElementById("edit-category-form"),
         confirmDeletePopupDiv: document.getElementById("confirm-delete-popup"),
         confirmDeleteButton: document.getElementById("confirm-delete-button"),
-        confirmCancelButton: document.getElementById("confirm-cancel-button"),
         checkoutPopupDiv: document.getElementById("checkout-popup"),
         checkoutSummaryDiv: document.getElementById("checkout-summary"),
         checkoutCheckoutButton: document.getElementById("checkout-checkout-button"),
-        checkoutCancelButton: document.getElementById("checkout-cancel-button"),
     }
 }
 
@@ -208,7 +205,10 @@ function initializeSite() {
     // localstorage
     const lsData = localStorage.getItem("data")
     const lsOpts = localStorage.getItem("opts")
-    if (!lsData) data = []
+    if (!lsData) {
+        data = []
+        alert("Welcome to my ethically made app (no AI) that I made instead of doing thesis (I will fail). To get started, create a new category by clicking on the top there, anyway bye, contact me if you have any issues haha")
+    }
     else data = JSON.parse(lsData)
     if (!lsOpts) globals.opts = { editMode: false, totalProfit: 0 }
     else globals.opts = JSON.parse(lsOpts)
@@ -284,6 +284,7 @@ function getCheckoutSummary(cart, subtotal, amount) {
             summary += `\t${item.name} x${item.cartTotal}\n`
     }
 
+    if (!summary) summary = "No items in cart\n"
     summary += `\nSubtotal: ${subtotal}\nItems: ${amount}`
 
     return summary
@@ -525,15 +526,6 @@ function setupPopupForms() {
     }
     globals.popup.checkoutPopupDiv.onclick = (e) => {
         if (e.target === globals.popup.checkoutPopupDiv) closeCheckoutPopup()
-    }
-    globals.popup.checkoutCancelButton.onclick = (e) => {
-        closeCheckoutPopup()
-    }
-    globals.popup.confirmCancelButton.onclick = (e) => {
-        closeConfirmDeletePopup()
-    }
-    globals.popup.editItemCancelButton.onclick = (e) => {
-        closeEditItemPopup()
     }
     globals.popup.newItemForm.onsubmit = (e) => {
         e.preventDefault()

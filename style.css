@@ -147,7 +147,7 @@ main>div {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 0.6rem;
+    gap: 1rem;
 }
 
 .icon.box {
