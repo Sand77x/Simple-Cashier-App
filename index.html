@@ -1,0 +1,59 @@
+<!-- MAIN PAGE -->
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="./style.css">
+</head>
+
+<body>
+    <header>
+        <div id="header-left">
+            <button onclick="foldAllCategories()">⬇️ Fold All</button>
+            <button onclick="expandAllCategories()">⬆️ Expand All</button>
+            <button onclick="emptyCart()">🕊️ Empty Cart</button>
+            <button onclick="openNewItemPopup()">⭐ New Item</button>
+            <button onclick="openNewCategoryPopup()">👜 New Cagegory</button>
+            <button onclick="toggleEditMode(this)">🫣 Edit Mode</button>
+        </div>
+        <div id="header-right">
+            <p id="header-total-profit">P1000.29</p>
+        </div>
+    </header>
+
+    <main></main>
+
+    <div id="new-item-popup">
+        <form id="new-item-form">
+            <label for="new-item-name">
+                Item Name<br>
+                <input id="new-item-name" type="text" name="item-name" placeholder="Odesseus Charm">
+            </label>
+            <label for="new-item-amount">
+                Amount<br>
+                <input id="new-item-amount" type="number" name="item-amount" placeholder="10">
+            </label>
+            <label for="new-item-price">
+                Price<br>
+                <input id="new-item-price" type="number" name="item-price" placeholder="12.3">
+            </label>
+            <label for="new-item-category">
+                Category<br>
+                <select id="new-item-category" name="item-category">
+                    <option value="hey">hey</option>
+                    <option value="hey">hey</option>
+                    <option value="hey">hey</option>
+                </select>
+            </label>
+            <button type="submit">Create</button>
+        </form>
+    </div>
+    <div id="new-category-popup"></div>
+</body>
+
+<script src="./script.js"></script>
+
+</html>
