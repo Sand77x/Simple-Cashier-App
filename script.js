@@ -51,10 +51,12 @@ function setTotal() {
     const res = prompt("New Total: ")
     if (res == null) return
     const total = Number(res)
-    if (!isNaN(total)) {
+    if (!isNaN(total) && total >= 0) {
         globals.opts.totalProfit = total
         updateSubtotalDiv()
         uploadToLocalStorage()
+    } else {
+        alert("What kinda money u got here bruh 💀")
     }
 }
 
