@@ -63,8 +63,8 @@ function setTotal() {
 function updateSubtotalDiv() {
     const [, subtotal, amount] = getCart()
     const icon = `<span class="box icon" onclick="setTotal()">✍️</span>`
-    globals.header.subtotalP.innerHTML = `🤠 P${subtotal} (${amount} items)`
-    globals.header.totalP.innerHTML = `${globals.opts.editMode ? icon : ""} P${globals.opts.totalProfit}`
+    globals.header.subtotalP.innerHTML = `🤠 ₱${subtotal} (${amount} items)`
+    globals.header.totalP.innerHTML = `${globals.opts.editMode ? icon : ""} ₱${globals.opts.totalProfit}`
 }
 
 function createItemsHolderDiv() {
@@ -153,7 +153,7 @@ function createItemDiv(item) {
         <div class="main-item-marker">
         </div>
         <div class="main-item-left">
-            <span>[${item.amount}] ${item.name} - P${item.price}</span>
+            <span>[${item.amount}] ${item.name} - ₱${item.price}</span>
         </div>
         <div class="main-item-right">
             <div class="main-item-icons">
@@ -287,7 +287,7 @@ function getCheckoutSummary(cart, subtotal, amount) {
     }
 
     if (!summary) summary = "No items in cart\n"
-    summary += `\nSubtotal: ${subtotal}\nItems: ${amount}`
+    summary += `\nSubtotal: ₱${subtotal}\nItems: ${amount}`
 
     return summary
 }
