@@ -12,13 +12,14 @@
 <body>
     <header>
         <div id="header-top">
-            <!--<button onclick="foldAllCategories()">⬇️ Fold All</button>-->
+            <button onclick="foldAllCategories()">⬇️ Fold All</button>
             <!--<button onclick="expandAllCategories()">⬆️ Expand All</button>-->
             <button id="header-edit-mode-button" onclick="toggleEditMode()">✏️ Edit Mode</button>
             <button onclick="openNewItemPopup()">⭐ New Item</button>
             <button onclick="openNewCategoryPopup()">👜 New Cagegory</button>
             <button onclick="emptyCart()">🕊️ Empty Cart</button>
             <button onclick="startCheckout()">🛒 Checkout</button>
+            <button onclick="generateReport()">📓 See Report</button>
         </div>
         <div id="header-bottom">
             <p id="header-subtotal"></p>
@@ -109,6 +110,12 @@
         <div id="checkout-form" class="popup-form">
             <div id="checkout-summary"></div>
             <button id="checkout-checkout-button">Checkout</button>
+        </div>
+    </div>
+    <div id="report-popup" class="popup closed-popup">
+        <div id="report-form" class="popup-form">
+            <div id="report-summary"></div>
+            <button id="report-copy-button">Copy</button>
         </div>
     </div>
 </body>
