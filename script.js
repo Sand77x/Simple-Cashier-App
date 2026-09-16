@@ -110,7 +110,7 @@ function startEditingItem(name) {
     const item = getItem(name);
     const category = getCategoryFromItem(name);
     if (item && category) {
-        const values = [item.name, item.amount, item.price, name];
+        const values = [item.name, item.amount, item.price, item.sold, name];
         globals.popup.editItemForm
             .querySelectorAll('input')
             .forEach((input, i) => {
@@ -285,6 +285,9 @@ function finishCheckout(cart, subtotal) {
         for (const item of category.items) {
             item.amount -= item.cartTotal;
             item.sold += item.cartTotal;
+
+            console.log(typeof item.amount)
+            console.log(typeof item.sold)
         }
     }
 }
@@ -340,11 +343,11 @@ function getItem(name) {
     return null;
 }
 
-function addItem(name, amount, price, categoryName) {
+function addItem(name, amount, price, sold, categoryName) {
     const category = getCategory(categoryName);
 
     if (category) {
-        const item = { name, amount, price, cartTotal: 0, sold: 0 };
+        const item = { name, amount, price, sold, cartTotal: 0 };
         item.view = createItemDiv(item);
         category.items.push(item);
         category.itemsHolderDiv.appendChild(item.view);
@@ -560,13 +563,15 @@ function setupPopupForms() {
     globals.popup.newItemForm.onsubmit = (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        const [name, amount, price, category] = formData
+        let [name, amount, price, category] = formData
             .values()
             .map((str) => str.trim());
+        amount = Number(amount);
+        price = Number(price);
         if (validateItemInputs(name, amount, price)) {
             const chosenCategory = getCategory(category);
             if (chosenCategory) {
-                addItem(name, amount, price, category);
+                addItem(name, amount, price, 0, category);
                 closeNewItemPopup();
                 uploadToLocalStorage();
             } else alert('Invalid Category');
@@ -575,14 +580,17 @@ function setupPopupForms() {
     globals.popup.editItemForm.onsubmit = (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        const [name, amount, price, category, oldName] = formData
+        let [name, amount, price, sold, category, oldName] = formData
             .values()
             .map((str) => str.trim());
-        if (validateItemInputs(name, amount, price, oldName)) {
+        amount = Number(amount);
+        price = Number(price);
+        sold = Number(sold);
+        if (validateItemInputs(name, amount, price, sold, oldName)) {
             const chosenCategory = getCategory(category);
             if (chosenCategory) {
                 removeItem(oldName);
-                addItem(name, amount, price, chosenCategory.name);
+                addItem(name, amount, price, sold, chosenCategory.name);
                 closeEditItemPopup();
                 uploadToLocalStorage();
             } else alert('Invalid Category');
@@ -644,7 +652,7 @@ function validateCategoryInputs(name, color, oldName = '') {
     return true;
 }
 
-function validateItemInputs(name, amount, price, oldName = '') {
+function validateItemInputs(name, amount, price, sold = 0, oldName = '') {
     if (getItem(name) && name !== oldName) {
         alert('Item Name Taken');
         return false;
@@ -654,14 +662,14 @@ function validateItemInputs(name, amount, price, oldName = '') {
         alert('Empty Field Found');
         return false;
     }
-    amount = Number(amount);
-    price = Number(price);
 
     if (
         !Number.isInteger(amount) ||
         amount < 0 ||
         Number.isNaN(price) ||
-        price < 0
+        price < 0 ||
+        !Number.isInteger(sold) ||
+        sold < 0
     ) {
         alert('Invalid Input');
         return false;
@@ -689,7 +697,7 @@ function generateReport() {
     globals.popup.reportSummaryDiv.innerHTML = `<p>${summary}</p>`;
     globals.popup.reportCopyButton.onclick = () => {
         navigator.clipboard.writeText(summary);
-        alert('Report copied to clipboard')
+        alert('Report copied to clipboard');
     };
 
     openReportPopup();
