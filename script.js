@@ -7,6 +7,10 @@ const globals = {
         totalP: document.getElementById('header-total'),
         subtotalP: document.getElementById('header-subtotal'),
         editModeButton: document.getElementById('header-edit-mode-button'),
+        cancelB1t1Button: document.getElementById('header-cancel-b1t1-button'),
+        startCheckoutButton: document.getElementById(
+            'header-start-checkout-button',
+        ),
     },
     popup: {
         newItemPopupDiv: document.getElementById('new-item-popup'),
@@ -145,18 +149,32 @@ function createItemDiv(item) {
     if (item.cartTotal > 0) {
         itemDiv.classList.add('main-item-selected');
     }
-    let icons;
+    let icons = ``;
     if (globals.opts.editMode) {
         icons = `
             <span class="box icon" onclick="startEditingItem('${item.name}')">✍️</span>
             <span class="box icon" onclick="startRemovingItem('${item.name}')">❌</span>
         `;
     } else {
-        icons = `
+        if (globals.opts.b1t1Mode) {
+            if (item.price === 0 && item.amount > item.cartTotal) {
+                icons = `
             ${item.cartTotal}
-            <span class="box icon" onclick="addItemToCart('${item.name}')">➕</span>
-            <span class="box icon" onclick="removeItemFromCart('${item.name}')">➖</span>
+            <span class="box icon" onclick="takeOne('${item.name}')">👈</span>`;
+            } else {
+                icons = ``;
+            }
+        } else {
+            plusIcon = `<span class="box icon" onclick="addItemToCart('${item.name}')">➕</span>`;
+            b1t1Icon = `<span class="box icon" onclick="b1t1ToCart('${item.name}')">BT</span>`;
+            minusIcon = `<span class="box icon" onclick="removeItemFromCart('${item.name}')">➖</span>`;
+            icons = `
+            ${item.cartTotal}
+            ${(item.amount > item.cartTotal && plusIcon) || `<span class="box"></span>`}
+            ${(item.amount > item.cartTotal && b1t1Icon) || `<span class="box"></span>`}
+            ${(item.cartTotal > 0 && minusIcon) || `<span class="box"></span>`}
         `;
+        }
     }
     itemDiv.innerHTML = `
         <div class="main-item-marker">
@@ -222,11 +240,16 @@ function initializeSite() {
             'Welcome to my ethically made app (no AI) that I made instead of doing thesis (I will fail). To get started, create a new category by clicking on the top there, anyway bye, contact me if you have any issues haha',
         );
     } else data = JSON.parse(lsData);
-    if (!lsOpts) globals.opts = { editMode: false, totalProfit: 0 };
+    if (!lsOpts)
+        globals.opts = { editMode: false, b1t1Mode: false, totalProfit: 0 }; // TODO: make enum for this?
     else globals.opts = JSON.parse(lsOpts);
+
+    globals.opts.editMode = false;
+    globals.opts.b1t1Mode = false;
 
     setupDataViews();
     setupPopupForms();
+    setupMisc();
     updateSubtotalDiv();
 }
 
@@ -246,6 +269,11 @@ function setupDataViews() {
         globals.mainDiv.appendChild(category.itemsHolderDiv);
         sortItems(category.name);
     }
+}
+
+function setupMisc() {
+    globals.header.startCheckoutButton.hidden = false;
+    globals.header.cancelB1t1Button.hidden = true;
 }
 
 function getCart() {
@@ -286,47 +314,85 @@ function finishCheckout(cart, subtotal) {
             item.amount -= item.cartTotal;
             item.sold += item.cartTotal;
 
-            console.log(typeof item.amount)
-            console.log(typeof item.sold)
+            console.log(typeof item.amount);
+            console.log(typeof item.sold);
         }
     }
 }
 
 function getCheckoutSummary(cart, subtotal, amount) {
-    let summary = '';
+    let summary = `
+        <table class="summary-table">
+            <tr>
+                <th>Name</th>
+                <th>Amount</th>
+                <th>Subtotal</th>
+            </tr>
+        `;
 
     for (const category of cart) {
-        summary += `${category.name}\n`;
+        summary += `
+            <tr class="table-category">
+                <td>${category.name}</td>
+                <td>---</td>
+                <td>---</td>
+            </tr>`;
         for (const item of category.items)
-            summary += `\t${item.name} x${item.cartTotal}\n`;
+            summary += `
+            <tr>
+                <td>${item.name}</td> 
+                <td>${item.cartTotal}</td>
+                <td>₱${(item.cartTotal * item.price).toFixed(2)}</td>
+            </tr>`;
     }
 
-    if (!summary) summary = 'No items in cart\n';
-    summary += `\nSubtotal: ₱${subtotal.toFixed(2)}\nItems: ${amount}`;
+    summary += `</table>`;
+    summary = `\nSubtotal: ₱${subtotal.toFixed(2)}\nItems: ${amount}` + summary;
 
     return summary;
 }
 
 function addItemToCart(name) {
-    if (!globals.opts.editMode) {
-        const item = getItem(name);
-        if (item && item.cartTotal < item.amount) {
-            item.cartTotal++;
-            updateItem(item);
-        }
+    const item = getItem(name);
+    if (item && item.cartTotal < item.amount) {
+        item.cartTotal++;
+        updateItem(item);
+        updateSubtotalDiv();
     }
-    updateSubtotalDiv();
+}
+
+function b1t1ToCart(name) {
+    const item = getItem(name);
+    if (item && item.cartTotal < item.amount) {
+        item.cartTotal++;
+        setB1t1Mode(true);
+        updateAllItems();
+        updateSubtotalDiv();
+    }
+}
+
+function takeOne(name) {
+    const item = getItem(name);
+    if (item && item.cartTotal < item.amount) {
+        item.cartTotal++;
+        updateSubtotalDiv();
+        setB1t1Mode(false);
+        updateAllItems();
+    }
+}
+
+function cancelB1t1() {
+    setB1t1Mode(false);
+    updateAllItems();
 }
 
 function removeItemFromCart(name) {
-    if (!globals.opts.editMode) {
-        const item = getItem(name);
-        if (item && item.cartTotal > 0) {
-            item.cartTotal--;
-            updateItem(item);
-        }
+    const item = getItem(name);
+    if (item && item.cartTotal > 0) {
+        item.cartTotal--;
+        updateItem(item);
+        updateSubtotalDiv();
     }
-    updateSubtotalDiv();
 }
 
 function getCategory(name) {
@@ -449,8 +515,9 @@ function emptyCart() {
     for (const category of cart) {
         category.items.map((item) => {
             item.cartTotal = 0;
-            updateItem(item);
         });
+        setB1t1Mode(false);
+        updateAllItems();
     }
     updateSubtotalDiv();
 }
@@ -460,9 +527,15 @@ function toggleEditMode() {
         globals.header.editModeButton.textContent = '✏️ Edit Mode';
     else globals.header.editModeButton.textContent = '👀 Normal Mode';
     globals.opts.editMode = !globals.opts.editMode;
+    setB1t1Mode(false);
     emptyCart();
     updateAllItems();
-    updateAllCategories();
+}
+
+function setB1t1Mode(value) {
+    globals.opts.b1t1Mode = value;
+    globals.header.cancelB1t1Button.hidden = !globals.opts.b1t1Mode;
+    globals.header.startCheckoutButton.hidden = globals.opts.b1t1Mode;
 }
 
 function openCheckoutPopup() {
@@ -566,8 +639,8 @@ function setupPopupForms() {
         let [name, amount, price, category] = formData
             .values()
             .map((str) => str.trim());
-        amount = Number(amount);
-        price = Number(price);
+        amount = amount && Number(amount);
+        price = price && Number(price);
         if (validateItemInputs(name, amount, price)) {
             const chosenCategory = getCategory(category);
             if (chosenCategory) {
@@ -583,9 +656,9 @@ function setupPopupForms() {
         let [name, amount, price, sold, category, oldName] = formData
             .values()
             .map((str) => str.trim());
-        amount = Number(amount);
-        price = Number(price);
-        sold = Number(sold);
+        amount = amount && Number(amount);
+        price = price && Number(price);
+        sold = sold && Number(sold);
         if (validateItemInputs(name, amount, price, sold, oldName)) {
             const chosenCategory = getCategory(category);
             if (chosenCategory) {
@@ -658,7 +731,7 @@ function validateItemInputs(name, amount, price, sold = 0, oldName = '') {
         return false;
     }
 
-    if (!name || !amount || !price) {
+    if (!name || amount === '' || price === '') {
         alert('Empty Field Found');
         return false;
     }
@@ -679,24 +752,55 @@ function validateItemInputs(name, amount, price, sold = 0, oldName = '') {
 }
 
 function getReportSummary() {
-    let summary = '\tStock - Sold - Name\n';
+    let summary = `
+<table class="summary-table">
+    <tr>
+        <th>Name</th>
+        <th>Stock</th>
+        <th>Sold</th>
+    </tr>
+`;
 
     for (const category of data) {
-        summary += `${category.name}\n`;
+        summary += `
+            <tr class="table-category">
+                <td>${category.name}</td>
+                <td>---</td>
+                <td>---</td>
+            </tr>`;
         for (const item of category.items) {
-            summary += `\t${item.amount}\t${item.sold}\t${item.name}\n`;
+            summary += `
+                <tr>
+                    <td>${item.name}</td>
+                    <td>${item.amount}</td>
+                    <td>${item.sold}</td>
+                </tr>`;
         }
     }
 
+    summary += `</table>`;
+
+    return summary;
+}
+
+function getReportSummaryCopyable() {
+    let summary = `Name,Stock,Sold\n`;
+    for (const category of data) {
+        summary += `${category.name},---,---\n`;
+        for (const item of category.items) {
+            summary += `${item.name},${item.amount},${item.sold}\n`;
+        }
+    }
     return summary;
 }
 
 function generateReport() {
     const summary = getReportSummary();
+    const copyText = getReportSummaryCopyable();
 
     globals.popup.reportSummaryDiv.innerHTML = `<p>${summary}</p>`;
     globals.popup.reportCopyButton.onclick = () => {
-        navigator.clipboard.writeText(summary);
+        navigator.clipboard.writeText(copyText);
         alert('Report copied to clipboard');
     };
 

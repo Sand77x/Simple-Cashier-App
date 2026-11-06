@@ -1,0 +1,758 @@
+let data;
+
+const globals = {
+    opts: {},
+    mainDiv: document.querySelector('main'),
+    header: {
+        totalP: document.getElementById('header-total'),
+        subtotalP: document.getElementById('header-subtotal'),
+        editModeButton: document.getElementById('header-edit-mode-button'),
+        cancelB1t1Button: document.getElementById('header-cancel-b1t1-button'),
+        startCheckoutButton: document.getElementById(
+            'header-start-checkout-button',
+        ),
+    },
+    popup: {
+        newItemPopupDiv: document.getElementById('new-item-popup'),
+        newItemForm: document.getElementById('new-item-form'),
+        newItemCategorySelect: document.getElementById('new-item-category'),
+        editItemPopupDiv: document.getElementById('edit-item-popup'),
+        editItemForm: document.getElementById('edit-item-form'),
+        editItemCategorySelect: document.getElementById('edit-item-category'),
+        newCategoryPopupDiv: document.getElementById('new-category-popup'),
+        newCategoryForm: document.getElementById('new-category-form'),
+        editCategoryPopupDiv: document.getElementById('edit-category-popup'),
+        editCategoryForm: document.getElementById('edit-category-form'),
+        confirmDeletePopupDiv: document.getElementById('confirm-delete-popup'),
+        confirmDeleteButton: document.getElementById('confirm-delete-button'),
+        checkoutPopupDiv: document.getElementById('checkout-popup'),
+        checkoutSummaryDiv: document.getElementById('checkout-summary'),
+        checkoutCheckoutButton: document.getElementById(
+            'checkout-checkout-button',
+        ),
+        reportPopupDiv: document.getElementById('report-popup'),
+        reportSummaryDiv: document.getElementById('report-summary'),
+        reportCopyButton: document.getElementById('report-copy-button'),
+    },
+};
+
+function createCategoryDiv(category) {
+    const icons = `
+        <div class="main-item-icons">
+                <span class="box icon" onclick="startEditingCategory('${category.name}')">✍️</span>
+                <span class="box icon" onclick="startRemovingCategory('${category.name}')">❌</span>
+        </div>
+    `;
+    const categoryDiv = document.createElement('div');
+    categoryDiv.classList.add('main-category');
+    categoryDiv.style.backgroundColor = category.color;
+    categoryDiv.innerHTML = `
+        <p class="main-category-name">${category.name} <span class="icon">${category.folded ? '▷' : '▽'}</span></p>
+        ${globals.opts.editMode ? icons : ''}
+    `;
+    categoryDiv.onclick = (e) => {
+        if (!e.target.classList.contains('box'))
+            toggleFoldCategory(category.name);
+    };
+    return categoryDiv;
+}
+
+function setTotal() {
+    const res = prompt('New Total: ');
+    if (res == null) return;
+    const total = Number(res);
+    if (!isNaN(total) && total >= 0) {
+        globals.opts.totalProfit = total;
+        updateSubtotalDiv();
+        uploadToLocalStorage();
+    } else {
+        alert('What kinda money u got here bruh 💀');
+    }
+}
+
+function updateSubtotalDiv() {
+    const [, subtotal, amount] = getCart();
+    const icon = `<span class="box icon" onclick="setTotal()">✍️</span>`;
+    globals.header.subtotalP.innerHTML = `🤠 ₱${subtotal.toFixed(2)} (${amount} items)`;
+    globals.header.totalP.innerHTML = `${globals.opts.editMode ? icon : ''} ₱${globals.opts.totalProfit.toFixed(2)}`;
+}
+
+function createItemsHolderDiv() {
+    const itemsDiv = document.createElement('div');
+    itemsDiv.classList.add('main-category-items');
+    return itemsDiv;
+}
+
+function startRemovingItem(name) {
+    openConfirmDeletePopup();
+    globals.popup.confirmDeleteButton.onclick = () => {
+        removeItem(name);
+        closeConfirmDeletePopup();
+        uploadToLocalStorage();
+    };
+}
+
+function startRemovingCategory(name) {
+    openConfirmDeletePopup();
+    globals.popup.confirmDeleteButton.onclick = () => {
+        removeCategory(name);
+        closeConfirmDeletePopup();
+        uploadToLocalStorage();
+    };
+}
+
+function getCategoryFromItem(name) {
+    for (const category of data) {
+        for (const item of category.items) {
+            if (item.name === name) return category;
+        }
+    }
+    return null;
+}
+
+function startEditingItem(name) {
+    const item = getItem(name);
+    const category = getCategoryFromItem(name);
+    if (item && category) {
+        const values = [item.name, item.amount, item.price, item.sold, name];
+        globals.popup.editItemForm
+            .querySelectorAll('input')
+            .forEach((input, i) => {
+                input.value = values[i];
+            });
+        globals.popup.editItemCategorySelect.value = category.name;
+        sortItems(category.name);
+        openEditItemPopup();
+    }
+}
+
+function startEditingCategory(name) {
+    const category = getCategory(name);
+    if (category) {
+        const values = [category.name, category.color, name];
+        globals.popup.editCategoryForm
+            .querySelectorAll('input')
+            .forEach((input, i) => {
+                input.value = values[i];
+            });
+        openEditCategoryPopup();
+    }
+}
+
+function createItemDiv(item) {
+    const itemDiv = document.createElement('div');
+
+    if (item.amount == 0) itemDiv.classList.add('main-item-out');
+    else itemDiv.classList.remove('main-item-out');
+
+    itemDiv.classList.add('main-item');
+    if (item.cartTotal > 0) {
+        itemDiv.classList.add('main-item-selected');
+    }
+    let icons = ``;
+    if (globals.opts.editMode) {
+        icons = `
+            <span class="box icon" onclick="startEditingItem('${item.name}')">✍️</span>
+            <span class="box icon" onclick="startRemovingItem('${item.name}')">❌</span>
+        `;
+    } else {
+        if (globals.opts.b1t1Mode) {
+            if (item.price === 0 && item.amount > item.cartTotal) {
+                icons = `
+            ${item.cartTotal}
+            <span class="box icon" onclick="takeOne('${item.name}')">👈</span>`;
+            } else {
+                icons = ``;
+            }
+        } else {
+            icons = `
+            ${item.cartTotal}
+            <span class="box icon" onclick="addItemToCart('${item.name}')">➕</span>
+            <span class="box icon" onclick="b1t1ToCart('${item.name}')">BT</span>
+            <span class="box icon" onclick="removeItemFromCart('${item.name}')">➖</span>
+        `;
+        }
+    }
+    itemDiv.innerHTML = `
+        <div class="main-item-marker">
+        </div>
+        <div class="main-item-left">
+            <span>[${item.amount}] ${item.name} - ₱${Number(item.price).toFixed(2)}</span>
+        </div>
+        <div class="main-item-right">
+            <div class="main-item-icons">
+                ${icons}
+            </div>
+        </div>
+    `;
+    return itemDiv;
+}
+
+function updateAllCategories() {
+    for (const category of data) {
+        updateCategory(category);
+    }
+}
+
+function uploadToLocalStorage() {
+    localStorage.setItem('data', JSON.stringify(data));
+    localStorage.setItem('opts', JSON.stringify(globals.opts));
+}
+
+function updateCategory(category) {
+    const newView = createCategoryDiv(category);
+    category.view.replaceWith(newView);
+    category.view = newView;
+
+    if (category.folded) {
+        category.itemsHolderDiv.style.display = 'none';
+    }
+
+    if (!category.folded) {
+        category.itemsHolderDiv.style.display = 'grid';
+    }
+}
+
+function updateItem(item) {
+    const newView = createItemDiv(item);
+    item.view.replaceWith(newView);
+    item.view = newView;
+
+    if (item.amount == 0) sortItems(getCategoryFromItem(item.name));
+}
+
+function updateAllItems() {
+    for (const category of data) {
+        for (const item of category.items) updateItem(item);
+    }
+}
+
+function initializeSite() {
+    // localstorage
+    const lsData = localStorage.getItem('data');
+    const lsOpts = localStorage.getItem('opts');
+    if (!lsData) {
+        data = [];
+        alert(
+            'Welcome to my ethically made app (no AI) that I made instead of doing thesis (I will fail). To get started, create a new category by clicking on the top there, anyway bye, contact me if you have any issues haha',
+        );
+    } else data = JSON.parse(lsData);
+    if (!lsOpts)
+        globals.opts = { editMode: false, b1t1Mode: false, totalProfit: 0 }; // TODO: make enum for this?
+    else globals.opts = JSON.parse(lsOpts);
+
+    globals.opts.editMode = false;
+    globals.opts.b1t1Mode = false;
+
+    setupDataViews();
+    setupPopupForms();
+    setupMisc();
+    updateSubtotalDiv();
+}
+
+function setupDataViews() {
+    globals.mainDiv.innerHTML = '';
+    for (const category of data) {
+        category.view = createCategoryDiv(category);
+        category.itemsHolderDiv = createItemsHolderDiv();
+
+        for (const item of category.items) {
+            const itemDiv = createItemDiv(item);
+            category.itemsHolderDiv.appendChild(itemDiv);
+            item.view = itemDiv;
+        }
+
+        globals.mainDiv.appendChild(category.view);
+        globals.mainDiv.appendChild(category.itemsHolderDiv);
+        sortItems(category.name);
+    }
+}
+
+function setupMisc() {
+    globals.header.startCheckoutButton.hidden = false;
+    globals.header.cancelB1t1Button.hidden = true;
+}
+
+function getCart() {
+    const cart = [];
+    let subtotal = 0;
+    let amount = 0;
+    for (const entry of data) {
+        const cartCategory = { name: entry.name, items: [] };
+        for (const item of entry.items) {
+            if (item.cartTotal > 0) {
+                cartCategory.items.push(item);
+                subtotal += item.cartTotal * item.price;
+                amount += item.cartTotal;
+            }
+        }
+        if (cartCategory.items.length > 0) cart.push(cartCategory);
+    }
+    return [cart, subtotal, amount];
+}
+
+function startCheckout() {
+    const [cart, subtotal, amount] = getCart();
+    const summary = getCheckoutSummary(cart, subtotal, amount);
+    globals.popup.checkoutSummaryDiv.innerHTML = `<p>${summary}</p>`;
+    globals.popup.checkoutCheckoutButton.onclick = () => {
+        finishCheckout(cart, subtotal);
+        emptyCart();
+        closeCheckoutPopup();
+        uploadToLocalStorage();
+    };
+    openCheckoutPopup();
+}
+
+function finishCheckout(cart, subtotal) {
+    globals.opts.totalProfit += subtotal;
+    for (const category of cart) {
+        for (const item of category.items) {
+            item.amount -= item.cartTotal;
+            item.sold += item.cartTotal;
+
+            console.log(typeof item.amount);
+            console.log(typeof item.sold);
+        }
+    }
+}
+
+function getCheckoutSummary(cart, subtotal, amount) {
+    let summary = '';
+
+    for (const category of cart) {
+        summary += `${category.name}\n`;
+        for (const item of category.items)
+            summary += `\t${item.name} x${item.cartTotal}\n`;
+    }
+
+    if (!summary) summary = 'No items in cart\n';
+    summary += `\nSubtotal: ₱${subtotal.toFixed(2)}\nItems: ${amount}`;
+
+    return summary;
+}
+
+function addItemToCart(name) {
+    const item = getItem(name);
+    if (item && item.cartTotal < item.amount) {
+        item.cartTotal++;
+        updateItem(item);
+        updateSubtotalDiv();
+    }
+}
+
+function b1t1ToCart(name) {
+    const item = getItem(name);
+    if (item && item.cartTotal < item.amount) {
+        item.cartTotal++;
+        setB1t1Mode(true);
+        updateAllItems();
+        updateSubtotalDiv();
+    }
+}
+
+function takeOne(name) {
+    const item = getItem(name);
+    if (item && item.cartTotal < item.amount) {
+        item.cartTotal++;
+        updateSubtotalDiv();
+        setB1t1Mode(false);
+        updateAllItems();
+    }
+}
+
+function cancelB1t1() {
+    setB1t1Mode(false);
+    updateAllItems();
+}
+
+function removeItemFromCart(name) {
+    const item = getItem(name);
+    if (item && item.cartTotal > 0) {
+        item.cartTotal--;
+        updateItem(item);
+        updateSubtotalDiv();
+    }
+}
+
+function getCategory(name) {
+    const category = data.filter((category) => category.name === name);
+    if (category.length != 0) return category[0];
+    return null;
+}
+
+function getItem(name) {
+    for (const category of data) {
+        const item = category.items.filter((item) => item.name === name);
+        if (item.length != 0) return item[0];
+    }
+    return null;
+}
+
+function addItem(name, amount, price, sold, categoryName) {
+    const category = getCategory(categoryName);
+
+    if (category) {
+        const item = { name, amount, price, sold, cartTotal: 0 };
+        item.view = createItemDiv(item);
+        category.items.push(item);
+        category.itemsHolderDiv.appendChild(item.view);
+        sortItems(category.name);
+    }
+}
+
+function sortItems(categoryName) {
+    const category = getCategory(categoryName);
+    if (category) {
+        category.items.sort((a, b) => {
+            if (a.amount <= 0) return 1;
+            if (b.amount <= 0) return -1;
+
+            aName = a.name.toLowerCase();
+            bName = b.name.toLowerCase();
+            if (aName < bName) {
+                return -1;
+            }
+            if (aName > bName) {
+                return 1;
+            }
+            return 0;
+        });
+        category.itemsHolderDiv.innerHTML = '';
+        // PROBLEM HERE
+        for (const item of category.items)
+            category.itemsHolderDiv.appendChild(item.view);
+    }
+}
+
+function addCategory(name, color) {
+    if (!getCategory(name)) {
+        const category = {
+            name,
+            color,
+            folded: false,
+            items: [],
+        };
+        category.view = createCategoryDiv(category);
+        category.itemsHolderDiv = createItemsHolderDiv();
+        globals.mainDiv.appendChild(category.view);
+        globals.mainDiv.appendChild(category.itemsHolderDiv);
+        data.push(category);
+
+        updatePopupCategories();
+    }
+}
+
+function removeItem(name) {
+    for (const category of data) {
+        const items = category.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].name === name) {
+                items[i].view.remove();
+                items.splice(i, 1);
+                break;
+            }
+        }
+    }
+}
+
+function removeCategory(name) {
+    for (let i = 0; i < data.length; i++) {
+        if (data[i].name === name) {
+            data[i].view.remove();
+            data[i].itemsHolderDiv.remove();
+            for (const item of data[i].items) item.view.remove();
+            data.splice(i, 1);
+            break;
+        }
+    }
+}
+
+function toggleFoldCategory(name) {
+    const category = getCategory(name);
+    if (category) {
+        category.folded = !category.folded;
+        updateCategory(category);
+    }
+}
+
+function foldAllCategories() {
+    for (const category of data) {
+        category.folded = true;
+        updateCategory(category);
+    }
+}
+
+function expandAllCategories() {
+    for (const category of data) {
+        category.folded = false;
+        updateCategory(category);
+    }
+}
+
+function emptyCart() {
+    const [cart] = getCart();
+    for (const category of cart) {
+        category.items.map((item) => {
+            item.cartTotal = 0;
+            updateItem(item);
+        });
+    }
+    updateSubtotalDiv();
+}
+
+function toggleEditMode() {
+    if (globals.opts.editMode)
+        globals.header.editModeButton.textContent = '✏️ Edit Mode';
+    else globals.header.editModeButton.textContent = '👀 Normal Mode';
+    globals.opts.editMode = !globals.opts.editMode;
+    setB1t1Mode(false);
+    emptyCart();
+    updateAllItems();
+}
+
+function setB1t1Mode(value) {
+    globals.opts.b1t1Mode = value;
+    globals.header.cancelB1t1Button.hidden = !globals.opts.b1t1Mode;
+    globals.header.startCheckoutButton.hidden = globals.opts.b1t1Mode;
+}
+
+function openCheckoutPopup() {
+    globals.popup.checkoutPopupDiv.classList.remove('closed-popup');
+}
+
+function closeCheckoutPopup() {
+    globals.popup.checkoutPopupDiv.classList.add('closed-popup');
+    globals.popup.checkoutSummaryDiv.innerHTML = '';
+}
+
+function openReportPopup() {
+    globals.popup.reportPopupDiv.classList.remove('closed-popup');
+}
+
+function closeReportPopup() {
+    globals.popup.reportPopupDiv.classList.add('closed-popup');
+    globals.popup.reportSummaryDiv.innerHTML = '';
+}
+
+function openNewItemPopup() {
+    globals.popup.newItemPopupDiv.classList.remove('closed-popup');
+}
+
+function closeNewItemPopup() {
+    globals.popup.newItemPopupDiv.classList.add('closed-popup');
+    globals.popup.newItemPopupDiv
+        .querySelectorAll('input')
+        .forEach((input) => (input.value = ''));
+}
+
+function openEditItemPopup(name) {
+    globals.popup.editItemPopupDiv.classList.remove('closed-popup');
+}
+
+function closeEditItemPopup() {
+    globals.popup.editItemPopupDiv.classList.add('closed-popup');
+    globals.popup.editItemPopupDiv
+        .querySelectorAll('input')
+        .forEach((input) => (input.value = ''));
+}
+
+function openNewCategoryPopup() {
+    globals.popup.newCategoryPopupDiv.classList.remove('closed-popup');
+}
+
+function closeNewCategoryPopup() {
+    globals.popup.newCategoryPopupDiv.classList.add('closed-popup');
+    globals.popup.newCategoryPopupDiv
+        .querySelectorAll('input[type=text]')
+        .forEach((input) => (input.value = ''));
+}
+
+function openEditCategoryPopup(name) {
+    globals.popup.editCategoryPopupDiv.classList.remove('closed-popup');
+}
+
+function closeEditCategoryPopup() {
+    globals.popup.editCategoryPopupDiv.classList.add('closed-popup');
+    globals.popup.editCategoryPopupDiv
+        .querySelectorAll('input[type=text]')
+        .forEach((input) => (input.value = ''));
+}
+
+function openConfirmDeletePopup() {
+    globals.popup.confirmDeletePopupDiv.classList.remove('closed-popup');
+}
+
+function closeConfirmDeletePopup() {
+    globals.popup.confirmDeletePopupDiv.classList.add('closed-popup');
+}
+
+function setupPopupForms() {
+    globals.popup.newItemPopupDiv.onclick = (e) => {
+        if (e.target === globals.popup.newItemPopupDiv) closeNewItemPopup();
+    };
+    globals.popup.editItemPopupDiv.onclick = (e) => {
+        if (e.target === globals.popup.editItemPopupDiv) closeEditItemPopup();
+    };
+    globals.popup.newCategoryPopupDiv.onclick = (e) => {
+        if (e.target === globals.popup.newCategoryPopupDiv)
+            closeNewCategoryPopup();
+    };
+    globals.popup.editCategoryPopupDiv.onclick = (e) => {
+        if (e.target === globals.popup.editCategoryPopupDiv)
+            closeEditCategoryPopup();
+    };
+    globals.popup.confirmDeletePopupDiv.onclick = (e) => {
+        if (e.target === globals.popup.confirmDeletePopupDiv)
+            closeConfirmDeletePopup();
+    };
+    globals.popup.checkoutPopupDiv.onclick = (e) => {
+        if (e.target === globals.popup.checkoutPopupDiv) closeCheckoutPopup();
+    };
+    globals.popup.reportPopupDiv.onclick = (e) => {
+        if (e.target === globals.popup.reportPopupDiv) closeReportPopup();
+    };
+    globals.popup.newItemForm.onsubmit = (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        let [name, amount, price, category] = formData
+            .values()
+            .map((str) => str.trim());
+        amount = amount && Number(amount);
+        price = price && Number(price);
+        if (validateItemInputs(name, amount, price)) {
+            const chosenCategory = getCategory(category);
+            if (chosenCategory) {
+                addItem(name, amount, price, 0, category);
+                closeNewItemPopup();
+                uploadToLocalStorage();
+            } else alert('Invalid Category');
+        }
+    };
+    globals.popup.editItemForm.onsubmit = (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        let [name, amount, price, sold, category, oldName] = formData
+            .values()
+            .map((str) => str.trim());
+        amount = amount && Number(amount);
+        price = price && Number(price);
+        sold = sold && Number(sold);
+        if (validateItemInputs(name, amount, price, sold, oldName)) {
+            const chosenCategory = getCategory(category);
+            if (chosenCategory) {
+                removeItem(oldName);
+                addItem(name, amount, price, sold, chosenCategory.name);
+                closeEditItemPopup();
+                uploadToLocalStorage();
+            } else alert('Invalid Category');
+        }
+    };
+    globals.popup.newCategoryForm.onsubmit = (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const [name, color] = formData.values().map((str) => str.trim());
+        if (validateCategoryInputs(name, color)) {
+            addCategory(name, color);
+            closeNewCategoryPopup();
+            uploadToLocalStorage();
+        }
+    };
+    globals.popup.editCategoryForm.onsubmit = (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const [name, color, oldName] = formData
+            .values()
+            .map((str) => str.trim());
+        const category = getCategory(oldName);
+        if (validateCategoryInputs(name, color, oldName)) {
+            category.name = name;
+            category.color = color;
+            updateCategory(category);
+            closeEditCategoryPopup();
+            uploadToLocalStorage();
+        }
+    };
+    updatePopupCategories();
+}
+
+function updatePopupCategories() {
+    globals.popup.newItemCategorySelect.innerHTML = '';
+    globals.popup.editItemCategorySelect.innerHTML = '';
+
+    for (const category of data) {
+        const option = document.createElement('option');
+        option.value = option.textContent = category.name;
+        globals.popup.newItemCategorySelect.appendChild(option);
+        globals.popup.editItemCategorySelect.appendChild(
+            option.cloneNode(true),
+        );
+    }
+}
+
+function validateCategoryInputs(name, color, oldName = '') {
+    if (getCategory(name) && name !== oldName) {
+        alert('Category Name Taken');
+        return false;
+    }
+
+    if (!name || !color) {
+        alert('Empty Field Found');
+        return false;
+    }
+
+    return true;
+}
+
+function validateItemInputs(name, amount, price, sold = 0, oldName = '') {
+    if (getItem(name) && name !== oldName) {
+        alert('Item Name Taken');
+        return false;
+    }
+
+    if (!name || amount === '' || price === '') {
+        alert('Empty Field Found');
+        return false;
+    }
+
+    if (
+        !Number.isInteger(amount) ||
+        amount < 0 ||
+        Number.isNaN(price) ||
+        price < 0 ||
+        !Number.isInteger(sold) ||
+        sold < 0
+    ) {
+        alert('Invalid Input');
+        return false;
+    }
+
+    return true;
+}
+
+function getReportSummary() {
+    let summary = '\tStock - Sold - Name\n';
+
+    for (const category of data) {
+        summary += `${category.name}\n`;
+        for (const item of category.items) {
+            summary += `\t${item.amount}\t${item.sold}\t${item.name}\n`;
+        }
+    }
+
+    return summary;
+}
+
+function generateReport() {
+    const summary = getReportSummary();
+
+    globals.popup.reportSummaryDiv.innerHTML = `<p>${summary}</p>`;
+    globals.popup.reportCopyButton.onclick = () => {
+        navigator.clipboard.writeText(summary);
+        alert('Report copied to clipboard');
+    };
+
+    openReportPopup();
+}
+
+initializeSite();

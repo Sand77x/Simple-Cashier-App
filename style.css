@@ -71,6 +71,11 @@ header button {
     gap: 0.6rem;
 }
 
+#header-cancel-b1t1-button {
+    border-style: solid;
+    background-color: #e8dddd;
+}
+
 main>div {
     margin-bottom: 0.6rem;
 }
@@ -150,15 +155,18 @@ main>div {
     gap: 1rem;
 }
 
-.icon.box {
+.box {
     width: 40px;
     height: 40px;
+    color: var(--black);
+}
+
+.icon {
+    background-color: var(--white);
     display: inline-flex;
+    font-size: 1rem;
     justify-content: center;
     align-items: center;
-    font-size: 1rem;
-    color: var(--black);
-    background-color: var(--white);
     border: 1px solid black;
 }
 
@@ -196,7 +204,24 @@ main>div {
     background-color: red;
 }
 
-#checkout-summary, #report-summary {
+#checkout-summary,
+#report-summary {
     white-space: pre-wrap;
     overflow: scroll;
+}
+
+.summary-table {
+    border-collapse: collapse;
+}
+
+.summary-table .table-category {
+    font-weight: bold;
+}
+
+
+.summary-table td,
+.summary-table th {
+    border: 1px solid black;
+    text-align: left;
+    padding: 8px;
 }
