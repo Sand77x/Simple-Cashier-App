@@ -297,7 +297,7 @@ function getCart() {
 function startCheckout() {
     const [cart, subtotal, amount] = getCart();
     const summary = getCheckoutSummary(cart, subtotal, amount);
-    globals.popup.checkoutSummaryDiv.innerHTML = `<p>${summary}</p>`;
+    globals.popup.checkoutSummaryDiv.innerHTML = `${summary}`;
     globals.popup.checkoutCheckoutButton.onclick = () => {
         finishCheckout(cart, subtotal);
         emptyCart();
@@ -321,8 +321,7 @@ function finishCheckout(cart, subtotal) {
 }
 
 function getCheckoutSummary(cart, subtotal, amount) {
-    let summary = `
-        <table class="summary-table">
+    let summary = `<table class="summary-table">
             <tr>
                 <th>Name</th>
                 <th>Amount</th>
@@ -331,15 +330,13 @@ function getCheckoutSummary(cart, subtotal, amount) {
         `;
 
     for (const category of cart) {
-        summary += `
-            <tr class="table-category">
+        summary += `<tr class="table-category">
                 <td>${category.name}</td>
                 <td>---</td>
                 <td>---</td>
             </tr>`;
         for (const item of category.items)
-            summary += `
-            <tr>
+            summary += `<tr>
                 <td>${item.name}</td> 
                 <td>${item.cartTotal}</td>
                 <td>₱${(item.cartTotal * item.price).toFixed(2)}</td>
@@ -347,7 +344,7 @@ function getCheckoutSummary(cart, subtotal, amount) {
     }
 
     summary += `</table>`;
-    summary = `\nSubtotal: ₱${subtotal.toFixed(2)}\nItems: ${amount}` + summary;
+    summary = `<p>Subtotal: ₱${subtotal.toFixed(2)}</p><p>Items: ${amount}</p>` + summary;
 
     return summary;
 }
@@ -752,8 +749,7 @@ function validateItemInputs(name, amount, price, sold = 0, oldName = '') {
 }
 
 function getReportSummary() {
-    let summary = `
-<table class="summary-table">
+    let summary = `<p>Total: ₱${globals.opts.totalProfit.toFixed(2)}</p><table class="summary-table">
     <tr>
         <th>Name</th>
         <th>Stock</th>
@@ -762,15 +758,13 @@ function getReportSummary() {
 `;
 
     for (const category of data) {
-        summary += `
-            <tr class="table-category">
+        summary += `<tr class="table-category">
                 <td>${category.name}</td>
                 <td>---</td>
                 <td>---</td>
             </tr>`;
         for (const item of category.items) {
-            summary += `
-                <tr>
+            summary += `<tr>
                     <td>${item.name}</td>
                     <td>${item.amount}</td>
                     <td>${item.sold}</td>
@@ -784,7 +778,7 @@ function getReportSummary() {
 }
 
 function getReportSummaryCopyable() {
-    let summary = `Name,Stock,Sold\n`;
+    let summary = `Total:,${globals.opts.totalProfit.toFixed(2)}\nName,Stock,Sold\n`;
     for (const category of data) {
         summary += `${category.name},---,---\n`;
         for (const item of category.items) {
@@ -798,7 +792,7 @@ function generateReport() {
     const summary = getReportSummary();
     const copyText = getReportSummaryCopyable();
 
-    globals.popup.reportSummaryDiv.innerHTML = `<p>${summary}</p>`;
+    globals.popup.reportSummaryDiv.innerHTML = `${summary}`;
     globals.popup.reportCopyButton.onclick = () => {
         navigator.clipboard.writeText(copyText);
         alert('Report copied to clipboard');
