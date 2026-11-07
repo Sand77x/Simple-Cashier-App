@@ -123,7 +123,7 @@ main>div {
     background-color: darkgray;
 }
 
-.main-item-selected {
+.main-item-selected, .main-item-free-selected {
     color: var(--white);
     background-color: var(--black);
 }
@@ -131,6 +131,11 @@ main>div {
 .main-item-selected .main-item-marker {
     width: 20px;
     background-color: gold;
+}
+
+.main-item-free-selected .main-item-marker {
+    width: 20px;
+    background-color: lightblue;
 }
 
 .main-item-left,
@@ -171,7 +176,7 @@ main>div {
 }
 
 .popup {
-    position: absolute;
+    position: fixed;
     width: 100svw;
     height: 100svh;
     left: 0;

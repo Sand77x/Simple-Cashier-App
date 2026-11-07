@@ -57,24 +57,11 @@ function createCategoryDiv(category) {
     return categoryDiv;
 }
 
-function setTotal() {
-    const res = prompt('New Total: ');
-    if (res == null) return;
-    const total = Number(res);
-    if (!isNaN(total) && total >= 0) {
-        globals.opts.totalProfit = total;
-        updateSubtotalDiv();
-        uploadToLocalStorage();
-    } else {
-        alert('What kinda money u got here bruh 💀');
-    }
-}
-
 function updateSubtotalDiv() {
+    updateTotalProfit();
     const [, subtotal, amount] = getCart();
-    const icon = `<span class="box icon" onclick="setTotal()">✍️</span>`;
     globals.header.subtotalP.innerHTML = `🤠 ₱${subtotal.toFixed(2)} (${amount} items)`;
-    globals.header.totalP.innerHTML = `${globals.opts.editMode ? icon : ''} ₱${globals.opts.totalProfit.toFixed(2)}`;
+    globals.header.totalP.innerHTML = `₱${globals.opts.totalProfit.toFixed(2)}`;
 }
 
 function createItemsHolderDiv() {
@@ -88,6 +75,7 @@ function startRemovingItem(name) {
     globals.popup.confirmDeleteButton.onclick = () => {
         removeItem(name);
         closeConfirmDeletePopup();
+        updateSubtotalDiv();
         uploadToLocalStorage();
     };
 }
@@ -97,6 +85,7 @@ function startRemovingCategory(name) {
     globals.popup.confirmDeleteButton.onclick = () => {
         removeCategory(name);
         closeConfirmDeletePopup();
+        updateSubtotalDiv();
         uploadToLocalStorage();
     };
 }
@@ -114,7 +103,14 @@ function startEditingItem(name) {
     const item = getItem(name);
     const category = getCategoryFromItem(name);
     if (item && category) {
-        const values = [item.name, item.amount, item.price, item.sold, name];
+        const values = [
+            item.name,
+            item.amount,
+            item.price,
+            item.sold,
+            item.soldFree,
+            name,
+        ];
         globals.popup.editItemForm
             .querySelectorAll('input')
             .forEach((input, i) => {
@@ -148,6 +144,8 @@ function createItemDiv(item) {
     itemDiv.classList.add('main-item');
     if (item.cartTotal > 0) {
         itemDiv.classList.add('main-item-selected');
+    } else if (item.cartFreeTotal > 0) {
+        itemDiv.classList.add('main-item-free-selected');
     }
     let icons = ``;
     if (globals.opts.editMode) {
@@ -156,11 +154,10 @@ function createItemDiv(item) {
             <span class="box icon" onclick="startRemovingItem('${item.name}')">❌</span>
         `;
     } else {
+        icons = `${item.cartTotal} (${item.cartFreeTotal})`;
         if (globals.opts.b1t1Mode) {
-            if (item.price === 0 && item.amount > item.cartTotal) {
-                icons = `
-            ${item.cartTotal}
-            <span class="box icon" onclick="takeOne('${item.name}')">👈</span>`;
+            if (item.amount > item.cartTotal + item.cartFreeTotal) {
+                icons += `<span class="box icon" onclick="takeOne('${item.name}')">👈</span>`;
             } else {
                 icons = ``;
             }
@@ -168,11 +165,9 @@ function createItemDiv(item) {
             plusIcon = `<span class="box icon" onclick="addItemToCart('${item.name}')">➕</span>`;
             b1t1Icon = `<span class="box icon" onclick="b1t1ToCart('${item.name}')">BT</span>`;
             minusIcon = `<span class="box icon" onclick="removeItemFromCart('${item.name}')">➖</span>`;
-            icons = `
-            ${item.cartTotal}
-            ${(item.amount > item.cartTotal && plusIcon) || `<span class="box"></span>`}
-            ${(item.amount > item.cartTotal && b1t1Icon) || `<span class="box"></span>`}
-            ${(item.cartTotal > 0 && minusIcon) || `<span class="box"></span>`}
+            icons += `${(item.amount > item.cartTotal + item.cartFreeTotal && plusIcon) || `<span class="box"></span>`}
+            ${(item.amount > item.cartTotal + item.cartFreeTotal && b1t1Icon) || `<span class="box"></span>`}
+            ${(item.cartTotal + item.cartFreeTotal > 0 && minusIcon) || `<span class="box"></span>`}
         `;
         }
     }
@@ -283,10 +278,10 @@ function getCart() {
     for (const entry of data) {
         const cartCategory = { name: entry.name, items: [] };
         for (const item of entry.items) {
-            if (item.cartTotal > 0) {
+            if (item.cartTotal > 0 || item.cartFreeTotal > 0) {
                 cartCategory.items.push(item);
                 subtotal += item.cartTotal * item.price;
-                amount += item.cartTotal;
+                amount += item.cartTotal + item.cartFreeTotal;
             }
         }
         if (cartCategory.items.length > 0) cart.push(cartCategory);
@@ -300,7 +295,6 @@ function startCheckout() {
     globals.popup.checkoutSummaryDiv.innerHTML = `${summary}`;
     globals.popup.checkoutCheckoutButton.onclick = () => {
         finishCheckout(cart, subtotal);
-        emptyCart();
         closeCheckoutPopup();
         uploadToLocalStorage();
     };
@@ -308,16 +302,25 @@ function startCheckout() {
 }
 
 function finishCheckout(cart, subtotal) {
-    globals.opts.totalProfit += subtotal;
     for (const category of cart) {
         for (const item of category.items) {
-            item.amount -= item.cartTotal;
+            item.amount -= item.cartTotal + item.cartFreeTotal;
             item.sold += item.cartTotal;
-
-            console.log(typeof item.amount);
-            console.log(typeof item.sold);
+            item.soldFree += item.cartFreeTotal;
         }
     }
+    updateSubtotalDiv();
+    emptyCart();
+}
+
+function updateTotalProfit() {
+    let profit = 0;
+    for (const category of data) {
+        for (const item of category.items) {
+            profit += item.price * item.sold;
+        }
+    }
+    globals.opts.totalProfit = profit;
 }
 
 function getCheckoutSummary(cart, subtotal, amount) {
@@ -338,20 +341,22 @@ function getCheckoutSummary(cart, subtotal, amount) {
         for (const item of category.items)
             summary += `<tr>
                 <td>${item.name}</td> 
-                <td>${item.cartTotal}</td>
+                <td>${item.cartTotal} (${item.cartFreeTotal})</td>
                 <td>₱${(item.cartTotal * item.price).toFixed(2)}</td>
             </tr>`;
     }
 
     summary += `</table>`;
-    summary = `<p>Subtotal: ₱${subtotal.toFixed(2)}</p><p>Items: ${amount}</p>` + summary;
+    summary =
+        `<p>Subtotal: ₱${subtotal.toFixed(2)}</p><p>Items: ${amount}</p>` +
+        summary;
 
     return summary;
 }
 
 function addItemToCart(name) {
     const item = getItem(name);
-    if (item && item.cartTotal < item.amount) {
+    if (item && item.cartTotal + item.cartFreeTotal < item.amount) {
         item.cartTotal++;
         updateItem(item);
         updateSubtotalDiv();
@@ -360,7 +365,7 @@ function addItemToCart(name) {
 
 function b1t1ToCart(name) {
     const item = getItem(name);
-    if (item && item.cartTotal < item.amount) {
+    if (item && item.cartTotal + item.cartFreeTotal < item.amount) {
         item.cartTotal++;
         setB1t1Mode(true);
         updateAllItems();
@@ -370,8 +375,8 @@ function b1t1ToCart(name) {
 
 function takeOne(name) {
     const item = getItem(name);
-    if (item && item.cartTotal < item.amount) {
-        item.cartTotal++;
+    if (item && item.cartTotal + item.cartFreeTotal < item.amount) {
+        item.cartFreeTotal++;
         updateSubtotalDiv();
         setB1t1Mode(false);
         updateAllItems();
@@ -385,8 +390,8 @@ function cancelB1t1() {
 
 function removeItemFromCart(name) {
     const item = getItem(name);
-    if (item && item.cartTotal > 0) {
-        item.cartTotal--;
+    if (item && (item.cartTotal > 0 || item.cartFreeTotal > 0)) {
+        item.cartFreeTotal > 0 ? item.cartFreeTotal-- : item.cartTotal--;
         updateItem(item);
         updateSubtotalDiv();
     }
@@ -406,11 +411,19 @@ function getItem(name) {
     return null;
 }
 
-function addItem(name, amount, price, sold, categoryName) {
+function addItem(name, amount, price, sold, soldFree, categoryName) {
     const category = getCategory(categoryName);
 
     if (category) {
-        const item = { name, amount, price, sold, cartTotal: 0 };
+        const item = {
+            name,
+            amount,
+            price,
+            sold,
+            soldFree,
+            cartFreeTotal: 0,
+            cartTotal: 0,
+        };
         item.view = createItemDiv(item);
         category.items.push(item);
         category.itemsHolderDiv.appendChild(item.view);
@@ -483,6 +496,7 @@ function removeCategory(name) {
             break;
         }
     }
+    updatePopupCategories();
 }
 
 function toggleFoldCategory(name) {
@@ -512,6 +526,7 @@ function emptyCart() {
     for (const category of cart) {
         category.items.map((item) => {
             item.cartTotal = 0;
+            item.cartFreeTotal = 0;
         });
         setB1t1Mode(false);
         updateAllItems();
@@ -526,6 +541,7 @@ function toggleEditMode() {
     globals.opts.editMode = !globals.opts.editMode;
     setB1t1Mode(false);
     emptyCart();
+    updateAllCategories();
     updateAllItems();
 }
 
@@ -641,7 +657,7 @@ function setupPopupForms() {
         if (validateItemInputs(name, amount, price)) {
             const chosenCategory = getCategory(category);
             if (chosenCategory) {
-                addItem(name, amount, price, 0, category);
+                addItem(name, amount, price, 0, 0, category);
                 closeNewItemPopup();
                 uploadToLocalStorage();
             } else alert('Invalid Category');
@@ -650,18 +666,27 @@ function setupPopupForms() {
     globals.popup.editItemForm.onsubmit = (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        let [name, amount, price, sold, category, oldName] = formData
+        let [name, amount, price, sold, soldFree, category, oldName] = formData
             .values()
             .map((str) => str.trim());
         amount = amount && Number(amount);
         price = price && Number(price);
         sold = sold && Number(sold);
-        if (validateItemInputs(name, amount, price, sold, oldName)) {
+        soldFree = soldFree && Number(soldFree);
+        if (validateItemInputs(name, amount, price, sold, soldFree, oldName)) {
             const chosenCategory = getCategory(category);
             if (chosenCategory) {
                 removeItem(oldName);
-                addItem(name, amount, price, sold, chosenCategory.name);
+                addItem(
+                    name,
+                    amount,
+                    price,
+                    sold,
+                    soldFree,
+                    chosenCategory.name,
+                );
                 closeEditItemPopup();
+                updateSubtotalDiv();
                 uploadToLocalStorage();
             } else alert('Invalid Category');
         }
@@ -722,7 +747,14 @@ function validateCategoryInputs(name, color, oldName = '') {
     return true;
 }
 
-function validateItemInputs(name, amount, price, sold = 0, oldName = '') {
+function validateItemInputs(
+    name,
+    amount,
+    price,
+    sold = 0,
+    soldFree = 0,
+    oldName = '',
+) {
     if (getItem(name) && name !== oldName) {
         alert('Item Name Taken');
         return false;
@@ -739,7 +771,9 @@ function validateItemInputs(name, amount, price, sold = 0, oldName = '') {
         Number.isNaN(price) ||
         price < 0 ||
         !Number.isInteger(sold) ||
-        sold < 0
+        sold < 0 ||
+        !Number.isInteger(soldFree) ||
+        soldFree < 0
     ) {
         alert('Invalid Input');
         return false;
@@ -767,7 +801,7 @@ function getReportSummary() {
             summary += `<tr>
                     <td>${item.name}</td>
                     <td>${item.amount}</td>
-                    <td>${item.sold}</td>
+                    <td>${item.sold} (${item.soldFree})</td>
                 </tr>`;
         }
     }
@@ -782,7 +816,7 @@ function getReportSummaryCopyable() {
     for (const category of data) {
         summary += `${category.name},---,---\n`;
         for (const item of category.items) {
-            summary += `${item.name},${item.amount},${item.sold}\n`;
+            summary += `${item.name},${item.amount},${item.sold} (${item.soldFree})\n`;
         }
     }
     return summary;
